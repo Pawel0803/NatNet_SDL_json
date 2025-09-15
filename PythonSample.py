@@ -30,23 +30,6 @@ import os
 # This is a callback function that gets connected to the NatNet client
 # and called once per mocap frame.
 
-
-def receive_new_frame(data_dict):
-    order_list = ["frameNumber", "markerSetCount", "unlabeledMarkersCount", #type: ignore  # noqa F841
-                  "rigidBodyCount", "skeletonCount", "labeledMarkerCount",
-                  "timecode", "timecodeSub", "timestamp", "isRecording",
-                  "trackedModelsChanged"]
-    dump_args = False
-    if dump_args is True:
-        out_string = "    "
-        for key in data_dict:
-            out_string += key + "= "
-            if key in data_dict:
-                out_string += data_dict[key] + " "
-            out_string += "/"
-        print(out_string)
-
-
 def receive_new_frame_with_data(data_dict):
     order_list = ["frameNumber", "markerSetCount", "unlabeledMarkersCount", #type: ignore  # noqa F841
                   "rigidBodyCount", "skeletonCount", "labeledMarkerCount",
@@ -97,9 +80,9 @@ def print_configuration(natnet_client):
 
     # NatNet Server Info
     application_name = natnet_client.get_application_name()
-    nat_net_requested_version = natnet_client.get_nat_net_requested_version()
-    nat_net_version_server = natnet_client.get_nat_net_version_server()
-    server_version = natnet_client.get_server_version()
+    #nat_net_requested_version = natnet_client.get_nat_net_requested_version()
+    #nat_net_version_server = natnet_client.get_nat_net_version_server()
+    #server_version = natnet_client.get_server_version()
 
     print("  NatNet Server Info")
     print("    Application Name %s" % (application_name))
@@ -115,60 +98,9 @@ def print_configuration(natnet_client):
     print("  PythonVersion    %s" % (sys.version))
 
 
-def print_commands(can_change_bitstream):
-    outstring = "Commands:\n"
-    outstring += "Return Data from Motive\n"
-    outstring += "  s  send data descriptions\n"
-    outstring += "  r  resume/start frame playback\n"
-    outstring += "  p  pause frame playback\n"
-    outstring += "     pause may require several seconds\n"
-    outstring += "     depending on the frame data size\n"
-    outstring += "Change Working Range\n"
-    outstring += "  o  reset Working Range to: start/current/end frame 0/0/end of take\n" #type: ignore  # noqa F501
-    outstring += "  w  set Working Range to: start/current/end frame 1/100/1500\n" #type: ignore  # noqa F501
-    outstring += "Return Data Display Modes\n"
-    outstring += "  j  print_level = 0 supress data description and mocap frame data\n" #type: ignore  # noqa F501
-    outstring += "  k  print_level = 1 show data description and mocap frame data\n" #type: ignore  # noqa F501
-    outstring += "  l  print_level = 20 show data description and every 20th mocap frame data\n" #type: ignore  # noqa F501
-    outstring += "Change NatNet data stream version (Unicast only)\n"
-    outstring += "  3  Request NatNet 3.1 data stream (Unicast only)\n"
-    outstring += "  4  Request NatNet 4.1 data stream (Unicast only)\n"
-    outstring += "General\n"
-    outstring += "  t  data structures self test (no motive/server interaction)\n" #type: ignore  # noqa F501
-    outstring += "  c  print configuration\n"
-    outstring += "  h  print commands\n"
-    outstring += "  q  quit\n"
-    outstring += "\n"
-    outstring += "NOTE: Motive frame playback will respond differently in\n"
-    outstring += "       Endpoint, Loop, and Bounce playback modes.\n"
-    outstring += "\n"
-    outstring += "EXAMPLE: PacketClient [serverIP [ clientIP [ Multicast/Unicast]]]\n" #type: ignore  # noqa F501
-    outstring += "         PacketClient \"192.168.10.14\" \"192.168.10.14\" Multicast\n" #type: ignore  # noqa F501
-    outstring += "         PacketClient \"127.0.0.1\" \"127.0.0.1\" u\n"
-    outstring += "\n"
-    print(outstring)
-
-
 def request_data_descriptions(s_client):
     # Request the model definitions
     s_client.send_request(s_client.command_socket, s_client.NAT_REQUEST_MODELDEF, "",  (s_client.server_ip_address, s_client.command_port)) #type: ignore  # noqa F501
-
-
-def test_classes():
-    totals = [0, 0, 0]
-    print("Test Data Description Classes")
-    totals_tmp = DataDescriptions.test_all()
-    totals = add_lists(totals, totals_tmp)
-    print("")
-    print("Test MoCap Frame Classes")
-    totals_tmp = MoCapData.test_all()
-    totals = add_lists(totals, totals_tmp)
-    print("")
-    print("All Tests totals")
-    print("--------------------")
-    print("[PASS] Count = %3.1d" % totals[0])
-    print("[FAIL] Count = %3.1d" % totals[1])
-    print("[SKIP] Count = %3.1d" % totals[2])
 
 
 def my_parse_args(arg_list, args_dict):
@@ -234,13 +166,12 @@ if __name__ == "__main__":
     # This will create a new NatNet client
     #optionsDict = my_parse_args(sys.argv, optionsDict)
     streaming_client = NatNetClient()
-    streaming_client.set_client_address(optionsDict["clientAddress"])
-    streaming_client.set_server_address(optionsDict["serverAddress"])
-    streaming_client.set_use_multicast(optionsDict["use_multicast"])
+    #streaming_client.set_client_address(optionsDict["clientAddress"])
+    #streaming_client.set_server_address(optionsDict["serverAddress"])
+    #streaming_client.set_use_multicast(optionsDict["use_multicast"])
 
     # Streaming client configuration.
     # Calls RB handler on emulator for data transmission.
-    #streaming_client.new_frame_listener = receive_new_frame
     streaming_client.new_frame_with_data_listener = receive_new_frame_with_data  # type ignore # noqa E501
     streaming_client.rigid_body_listener = receive_rigid_body_frame
 
@@ -296,6 +227,5 @@ if __name__ == "__main__":
                 #     break
         # streaming_client.alljsondata = streaming_client.alljsondata + ']'
         streaming_client.write_to_file()
-    print_configuration(streaming_client)
     s.send(b"Stop")
     streaming_client.shutdown()

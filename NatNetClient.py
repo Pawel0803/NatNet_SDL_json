@@ -155,19 +155,19 @@ class NatNetClient:
     def set_pkt_time(self, pkttime):
         self.pkttime = pkttime
 
-    def set_client_address(self, local_ip_address):
-        if not self.__is_locked:
-            self.local_ip_address = local_ip_address
+    #def set_client_address(self, local_ip_address):
+    #    if not self.__is_locked:
+    #        self.local_ip_address = local_ip_address
 
-    def get_client_address(self):
-        return self.local_ip_address
+    #def get_client_address(self):
+    #    return self.local_ip_address
 
-    def set_server_address(self, server_ip_address):
-        if not self.__is_locked:
-            self.server_ip_address = server_ip_address
+    #def set_server_address(self, server_ip_address):
+    #    if not self.__is_locked:
+    #        self.server_ip_address = server_ip_address
 
-    def get_server_address(self):
-        return self.server_ip_address
+    #def get_server_address(self):
+    #    return self.server_ip_address
 
     def set_use_multicast(self, use_multicast):
         if not self.__is_locked:
@@ -1163,6 +1163,56 @@ class NatNetClient:
         is_recording = frame_suffix_data.is_recording
         tracked_models_changed = frame_suffix_data.tracked_models_changed
 
+        # Tworzenie danych JSON dla tej ramki
+        frame_data = {
+            "frame_number": frame_number,
+            "timestamp": self.pkttime / 1000000000.0 if hasattr(self, 'pkttime') else timestamp,
+            "timecode": timecode,
+            "timecode_sub": timecode_sub,
+            "is_recording": is_recording,
+            "tracked_models_changed": tracked_models_changed,
+            "rigid_bodies": []
+        }
+
+        # Dodawanie danych o rigid bodies
+        if rigid_body_count > 0:
+            for rb in rigid_body_data.rigid_body_list:
+                rb_data = {
+                    "id": rb.id_num,
+                    "position": [rb.pos[0], rb.pos[1], rb.pos[2]],
+                    "rotation": [rb.rot[0], rb.rot[1], rb.rot[2], rb.rot[3]],
+                    "tracking_valid": rb.tracking_valid
+                }
+                frame_data["rigid_bodies"].append(rb_data)
+
+        # Dodawanie danych o labeled markers
+        if labeled_marker_count > 0:
+            frame_data["labeled_markers"] = []
+            for marker in labeled_marker_data.labeled_marker_list:
+                marker_data = {
+                    "id": marker.id_num,
+                    "position": [marker.pos[0], marker.pos[1], marker.pos[2]],
+                    "size": marker.size,
+                    "residual": marker.residual
+                }
+                frame_data["labeled_markers"].append(marker_data)
+
+        # Dodawanie danych o markersetach
+        if marker_set_count > 0:
+            frame_data["marker_sets"] = []
+            for marker_set in marker_set_data.marker_set_list:
+                ms_data = {
+                    "name": marker_set.model_name.decode('utf-8') if isinstance(marker_set.model_name,
+                                                                                bytes) else marker_set.model_name,
+                    "markers": []
+                }
+                for marker_pos in marker_set.marker_data_list:
+                    ms_data["markers"].append([marker_pos[0], marker_pos[1], marker_pos[2]])
+                frame_data["marker_sets"].append(ms_data)
+
+        # Dodaj ramkę do alljsondata
+        self.alljsondata.append(frame_data)
+
         # Send information to any listener.
         if self.new_frame_listener is not None:
             data_dict = {}
@@ -2035,12 +2085,16 @@ class NatNetClient:
         print(data)
 
     def write_to_file(self):
-        ''' Write jsondata to json logfile'''
-        json_data = self.alljsondata
-        if json_data:
-            print('Writing socket data to: {}'.format(self.output_file))
+        if not self.alljsondata:
+            print("No frames to write to file")
+            return
+        try:
+            print(f'Writing {len(self.alljsondata)} frames to: {self.output_file}')
             with open(self.output_file, 'w') as log_file:
-                log_file.write(json.dumps(json_data, indent=4))
+                json.dump(self.alljsondata, log_file, indent=4)
+            print(f'Successfully wrote {len(self.alljsondata)} frames to: {self.output_file}')
+        except Exception as e:
+            print(f"Error writing to file: {e}")
 
     def processmessage(self, data: bytes, print_level=0):
         return self.__process_message(data, print_level=0)
@@ -2225,15 +2279,6 @@ class NatNetClient:
 
     def get_application_name(self):
         return self.__application_name
-
-    def get_nat_net_requested_version(self):
-        return self.__nat_net_requested_version
-
-    def get_nat_net_version_server(self):
-        return self.__nat_net_stream_version_server
-
-    def get_server_version(self):
-        return self.__server_version
 
     def run(self, thread_option):
         # Create the data socket
